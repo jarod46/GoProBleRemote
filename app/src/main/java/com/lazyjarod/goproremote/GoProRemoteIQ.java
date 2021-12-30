@@ -1,7 +1,6 @@
 package com.lazyjarod.goproremote;
 
 import android.content.Context;
-import android.content.SharedPreferences;
 import android.util.Log;
 import android.widget.ArrayAdapter;
 import android.widget.Spinner;
@@ -47,19 +46,25 @@ public class GoProRemoteIQ {
         return  true;
     }
 
-    String status = "disconnected";
-    String additional = "";
-    byte lastBatteryPercent = -1;
+    public enum MessageType {
+        Status,
+        Battery,
+        Remote,
+    }
+
+    MessageType lastMessageType = MessageType.Status;
+    String lastMessage = "disconnected";
+    String lastMessage2 = "";
     long lastTimeStamp = 0;
     Thread sendThread = null;
     boolean newMessage = false;
-    public void sendMessage(String message, String message2, byte batteryPercent) {
+    public void sendMessage(MessageType type, String message, String message2) {
         lastTimeStamp = System.currentTimeMillis() / 1000;
-        status = message;
-        additional = message2;
-        lastBatteryPercent = batteryPercent;
+        lastMessageType = type;
+        lastMessage = message;
+        lastMessage2 = message2;
         newMessage = true;
-        Log.d("log", "Store gps message : " + status + " (" + lastTimeStamp + ")");
+        Log.d("log", "Store gps message : [" + lastMessageType + ", " + lastMessage + ", " + lastMessage2 + "]");
         if (!ready)
             return;
         if (sendThread != null && sendThread.isAlive()) {
@@ -81,13 +86,14 @@ public class GoProRemoteIQ {
                         } catch (InterruptedException e) {
                             e.printStackTrace();
                         }
-                        Log.d("log", "Try send message to gps : " + status);
+                        Log.d("log", "Try send message to gps : [" + lastMessageType + ", " + lastMessage + ", " + lastMessage2 + "]");
                         messageConf = false;
                         List<String> messages = new LinkedList<>();
-                        messages.add(status);
-                        messages.add(additional);
+                        messages.add(lastMessageType.toString());
+                        messages.add(lastMessage);
+                        messages.add(lastMessage2);
                         messages.add(Long.toString(lastTimeStamp));
-                        messages.add(Byte.toString(lastBatteryPercent));
+                        messages.add(Byte.toString(GoProBle.getLasBatteryPercent()));
                         newMessage = false;
                         connectIQ.sendMessage(iqDevice, gpriqApp, messages, iqSendMessageListener);
                         if (!waitMessageConf()) {
@@ -117,7 +123,7 @@ public class GoProRemoteIQ {
             Log.d("log", "Receive groproremotestatus app infos...");
             gpriqApp = iqApp;
             ready = true;
-            sendMessage(status, additional, lastBatteryPercent);
+            sendMessage(lastMessageType, lastMessage, lastMessage2);
         }
 
         @Override
@@ -153,7 +159,7 @@ public class GoProRemoteIQ {
     public  void Stop() {
         try {
             connectIQ.unregisterAllForEvents();
-            connectIQ.shutdown(MainActivity.getMainActivity().getApplicationContext());
+            connectIQ.shutdown(MainActivity.getMainActivity());
         } catch (InvalidStateException e) {
             e.printStackTrace();
         }

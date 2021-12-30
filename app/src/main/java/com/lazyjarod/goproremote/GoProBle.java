@@ -421,7 +421,11 @@ public class GoProBle {
         return  lastCamMode;
     }
 
-    byte lasBatteryPercent = -1;
+    public static byte getLasBatteryPercent() {
+        return  lasBatteryPercent;
+    }
+
+    static byte lasBatteryPercent = -1;
     public byte CurrentBattery() {
         lasBatteryPercent = GetStatus((byte)70);
         Log.d("log", "Set last battery percent (" + lasBatteryPercent + ")");
@@ -511,17 +515,17 @@ public class GoProBle {
                 }
                 catch (Exception e) {}
             }
-            goproGatt = gopro.connectGatt(MainActivity.getContext(),false, new BluetoothGattCallback() {
+            goproGatt = gopro.connectGatt(MainActivity.getMainActivity(),false, new BluetoothGattCallback() {
                 @Override
                 public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
                     if (newState == BluetoothProfile.STATE_CONNECTED) {
                         System.out.println("GoPro ble connected");
-                        goProRemoteIQ.sendMessage("Standby", "", lasBatteryPercent);
+                        goProRemoteIQ.sendMessage(GoProRemoteIQ.MessageType.Status, "Standby", "");
                         //MainActivity.playSound(R.raw.coins497);
                         gatt.discoverServices();
                     }
                     else {
-                        goProRemoteIQ.sendMessage("Disconnected", "", lasBatteryPercent);
+                        goProRemoteIQ.sendMessage(GoProRemoteIQ.MessageType.Status, "Disconnected", "");
                         System.out.println("GoPro ble disconnected");
                         ConnectedAndReady = false;
                     }
@@ -579,17 +583,17 @@ public class GoProBle {
                             if (newStatus[5] == 1) {
                                 hasShutter = true;
                                 if (lastCamMode == 0)
-                                    goProRemoteIQ.sendMessage("Recording", "", lasBatteryPercent);
+                                    goProRemoteIQ.sendMessage(GoProRemoteIQ.MessageType.Status, "Recording", "");
                             } else {
                                 if (lastCamMode == 0)
-                                    goProRemoteIQ.sendMessage("Standby", "", lasBatteryPercent);
+                                    goProRemoteIQ.sendMessage(GoProRemoteIQ.MessageType.Status, "Standby", "");
                             }
                         }
                         if (newStatus[3] == 0x26 || (newStatus.length > 6 && newStatus[6] == 0x26)) {
                             byte picNum = newStatus[newStatus.length - 1];
                             Log.d("log", "Pictures num : " + picNum);
                             if (lastCamMode == 1)
-                                goProRemoteIQ.sendMessage("Pictures", Byte.toString(picNum), lasBatteryPercent);
+                                goProRemoteIQ.sendMessage(GoProRemoteIQ.MessageType.Status, "Pictures", Byte.toString(picNum));
                         }
                         if (newStatus[3] == 43) {
                             if (newStatus[5] >= 0) {
@@ -602,7 +606,7 @@ public class GoProBle {
                                 if (newStatus[5] != lasBatteryPercent) {
                                     Log.d("log", "Set battery percent (" + newStatus[5] + ")");
                                     lasBatteryPercent = newStatus[5];
-                                    goProRemoteIQ.sendMessage("Battery", Byte.toString(lasBatteryPercent), lasBatteryPercent);
+                                    goProRemoteIQ.sendMessage(GoProRemoteIQ.MessageType.Battery, Byte.toString(lasBatteryPercent), "");
                                 }
                             }
                         }

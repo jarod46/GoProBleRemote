@@ -60,6 +60,7 @@ public class Di2Fly {
                     descriptor.setValue(BluetoothGattDescriptor.ENABLE_INDICATION_VALUE);
                     di2Gatt.writeDescriptor(descriptor);
                     MainActivity.playSound(R.raw.confirmation);
+                    BackgroundBle.setDi2RemoteStatus(true);
                     System.out.println("D-Fly monitoring enabled");
                     return;
                 }
@@ -86,7 +87,7 @@ public class Di2Fly {
     long lastPress = 0;
     boolean manageButton = false;
     boolean tooMuchPressDisplayed = false;
-    public void Initialize(Button b) {
+    public void Initialize() {
 
 
         if (di2Gatt != null) {
@@ -115,7 +116,7 @@ public class Di2Fly {
         {
             System.out.println("Di2 ble connecting " + deviceName + "...");
 
-            di2Gatt = di2.connectGatt(MainActivity.getContext(),true, new BluetoothGattCallback() {
+            di2Gatt = di2.connectGatt(MainActivity.getMainActivity(),true, new BluetoothGattCallback() {
                 @Override
                 public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
                     super.onConnectionStateChange(gatt, status, newState);
@@ -127,6 +128,7 @@ public class Di2Fly {
                     else {
                         MainActivity.playSound(R.raw.fail);
                         System.out.println("Di2 ble disconnect");
+                        BackgroundBle.setDi2RemoteStatus(false);
                     }
 
                 }
@@ -219,17 +221,6 @@ public class Di2Fly {
 
 
             });
-
-            Runnable action = new Runnable() {
-                @Override
-                public void run() {
-                    b.setEnabled(true);
-                }
-            };
-            MainActivity activity = MainActivity.getMainActivity();
-            if (activity != null) {
-                activity.runOnUiThread(action);
-            }
 
 
             //di2Gatt.connect();

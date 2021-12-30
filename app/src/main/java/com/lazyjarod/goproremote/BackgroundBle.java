@@ -5,7 +5,12 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.media.VolumeProvider;
 import android.media.session.MediaSession;
 import android.os.IBinder;
@@ -15,6 +20,10 @@ import androidx.core.app.NotificationCompat;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.widget.Button;
+
+import java.lang.reflect.Method;
+import java.util.LinkedList;
+import java.util.List;
 
 public class BackgroundBle extends Service {
     @Nullable
@@ -27,6 +36,58 @@ public class BackgroundBle extends Service {
 
     static boolean isRunning = false;
 
+    public static boolean isConnected(BluetoothDevice device) {
+        try {
+            Method m = device.getClass().getMethod("isConnected", (Class[]) null);
+            return  (boolean) m.invoke(device, (Object[]) null);
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    static boolean multimediaRemoteStatus = false;
+    static boolean di2RemoteStatus = false;
+    public static void setMultimediaRemoteStatus(boolean status) {
+        boolean lastRemoteStatus = getRemoteEnabled();
+        multimediaRemoteStatus = status;
+        if (getRemoteEnabled() != lastRemoteStatus)
+            HandleRemoteStatusChange();
+    }
+    public static void setDi2RemoteStatus(boolean status) {
+        boolean lastRemoteStatus = getRemoteEnabled();
+        di2RemoteStatus = status;
+        if (getRemoteEnabled() != lastRemoteStatus)
+            HandleRemoteStatusChange();
+    }
+    public static boolean getRemoteEnabled() {
+        return multimediaRemoteStatus || di2RemoteStatus;
+    }
+    static void HandleRemoteStatusChange() {
+        if (isRunning()) {
+            getInstance().goProRemoteIQ.sendMessage(GoProRemoteIQ.MessageType.Remote, getRemoteEnabled() ? "1" : "0", "");
+        }
+    }
+
+
+    BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+            if (device != null && device.getBluetoothClass().getDeviceClass() == 0x540) { // 0x540 PERIPHERAL_KEYBOARD
+                if (intent.getAction().equals(BluetoothDevice.ACTION_ACL_CONNECTED)) {
+                    MainActivity.playSound(R.raw.confirmation);
+                    setMultimediaRemoteStatus(true);
+                    System.out.println("BT Keyboard connected : " + device.getName());
+                }
+                if (intent.getAction().equals(BluetoothDevice.ACTION_ACL_DISCONNECTED)) {
+                    MainActivity.playSound(R.raw.fail);
+                    setMultimediaRemoteStatus(false);
+                    System.out.println("BT Keyboard disconnected : " + device.getName());
+                }
+            }
+        }
+    };
+
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
 
@@ -38,7 +99,19 @@ public class BackgroundBle extends Service {
         if (useDi2)
             di2Fly = new Di2Fly(this, di2Name, intent.getIntExtra("dflyChan", 1), goProBle);
 
-        initButton = (Button)MainActivity.getMainActivity().findViewById(R.id.button);
+        BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
+        boolean connectedKeyboard = false;
+        for (BluetoothDevice device : adapter.getBondedDevices())
+        {
+            if (device.getBluetoothClass().getDeviceClass() == 0x540 && isConnected(device)) {
+                connectedKeyboard = true;
+                break;
+            }
+        }
+        setMultimediaRemoteStatus(connectedKeyboard);
+
+        this.registerReceiver(broadcastReceiver, new IntentFilter(BluetoothDevice.ACTION_ACL_CONNECTED));
+        this.registerReceiver(broadcastReceiver, new IntentFilter(BluetoothDevice.ACTION_ACL_DISCONNECTED));
 
         PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, new Intent(this, MainActivity.class), 0);
 
@@ -52,11 +125,12 @@ public class BackgroundBle extends Service {
         startForeground(1, notification);
 
         if (useDi2)
-            di2Fly.Initialize(initButton);
+            di2Fly.Initialize();
 
-        goProRemoteIQ.Initialize(getApplicationContext());
+        goProRemoteIQ.Initialize(MainActivity.getMainActivity());
 
         isRunning = true;
+        instance = this;
 
         handleUI();
 
@@ -82,7 +156,6 @@ public class BackgroundBle extends Service {
 
     GoProBle goProBle;
     Di2Fly di2Fly;
-    Button initButton;
     GoProRemoteIQ goProRemoteIQ;
 
     @Override
@@ -93,9 +166,17 @@ public class BackgroundBle extends Service {
         configureMediaSession();
     }
 
+    static BackgroundBle instance = null;
+    public static BackgroundBle getInstance() {
+        return instance;
+    }
+
     @Override
     public void onDestroy() {
+        isRunning = false;
         super.onDestroy();
+        instance = null;
+        this.unregisterReceiver(broadcastReceiver);
         if (s_mediaSession != null)
             s_mediaSession.release();
         if (goProRemoteIQ != null)
@@ -104,7 +185,7 @@ public class BackgroundBle extends Service {
             goProBle.goproGatt.close();
         if (di2Fly != null && di2Fly.di2Gatt != null)
             di2Fly.di2Gatt.close();
-        isRunning = false;
+
         handleUI();
     }
 

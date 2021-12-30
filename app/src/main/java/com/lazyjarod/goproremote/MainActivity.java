@@ -2,9 +2,12 @@ package com.lazyjarod.goproremote;
 
 import android.Manifest;
 import android.app.Application;
+import android.bluetooth.BluetoothClass;
 import android.bluetooth.BluetoothDevice;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.media.AudioManager;
@@ -51,7 +54,7 @@ public class MainActivity extends AppCompatActivity {
         final int originalVolume = mAudioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
         if (maxVolume)
             mAudioManager.setStreamVolume(AudioManager.STREAM_MUSIC, mAudioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC), 0);
-        mMediaPlayer = MediaPlayer.create(getContext(), sound);
+        mMediaPlayer = MediaPlayer.create(getMainActivity(), sound);
         mMediaPlayer.start();
         mMediaPlayer.setOnCompletionListener(mediaPlayer -> {
             mAudioManager.setStreamVolume(AudioManager.STREAM_MUSIC, originalVolume, 0);
@@ -62,12 +65,6 @@ public class MainActivity extends AppCompatActivity {
 
     private static Application sApplication;
 
-
-
-    public static Context getContext() {
-
-        return sApplication.getApplicationContext();
-    }
 
     static boolean readyRecord = false;
     static boolean maxVolume = true;
@@ -216,7 +213,8 @@ public class MainActivity extends AppCompatActivity {
         devices.add("Disabled");
         for (BluetoothDevice device : adapter.getBondedDevices())
         {
-            devices.add(device.getName());
+            if (device.getType() == BluetoothDevice.DEVICE_TYPE_LE)
+                devices.add(device.getName());
         }
         Spinner camChoose = findViewById(R.id.camChoice);
         ArrayAdapter<String> spinAdapter = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, devices);
