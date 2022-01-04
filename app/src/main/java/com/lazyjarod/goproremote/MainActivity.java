@@ -121,9 +121,6 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-
-
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -307,6 +304,15 @@ public class MainActivity extends AppCompatActivity {
 
         goProBle = new GoProBle(this, currentCam, new GoProRemoteIQ());
         //di2Fly = new Di2Fly(this, currentDi2, currentDflyChan, goProBle);
+
+        Button bSettings = findViewById(R.id.bSettings);
+        bSettings.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                startActivity(new Intent(MainActivity.this, SettingsActivity.class));
+                //setContentView(R.layout.settings_activity);
+            }
+        });
 
         Button b = findViewById(R.id.button);
         Button b2 = findViewById(R.id.button2);

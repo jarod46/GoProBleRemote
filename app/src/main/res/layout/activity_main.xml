@@ -29,7 +29,7 @@
     <EditText
         android:id="@+id/logsLines"
         android:layout_width="391dp"
-        android:layout_height="287dp"
+        android:layout_height="220dp"
         android:editable="false"
         android:ems="10"
         android:gravity="start|top"
@@ -96,6 +96,12 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Max volume alerts" />
+
+        <Button
+            android:id="@+id/bSettings"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="More settings..." />
 
     </LinearLayout>
 

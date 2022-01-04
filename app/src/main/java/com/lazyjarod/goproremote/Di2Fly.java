@@ -10,6 +10,7 @@ import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.util.Log;
 import android.widget.Button;
 
@@ -34,9 +35,9 @@ public class Di2Fly {
     GoProBle goProBle;
     String deviceName;
     int dflyChan;
-    Context context;
+    BackgroundBle context;
 
-    public Di2Fly(Context context, String deviceName, int dflyChan, GoProBle goProBle) {
+    public Di2Fly(BackgroundBle context, String deviceName, int dflyChan, GoProBle goProBle) {
         this.context = context;
         this.goProBle = goProBle;
         SetDeviceName(deviceName);
@@ -60,7 +61,10 @@ public class Di2Fly {
                     descriptor.setValue(BluetoothGattDescriptor.ENABLE_INDICATION_VALUE);
                     di2Gatt.writeDescriptor(descriptor);
                     MainActivity.playSound(R.raw.confirmation);
-                    BackgroundBle.setDi2RemoteStatus(true);
+                    SharedPreferences sharedPref = MainActivity.getMainActivity().getPreferences(Context.MODE_PRIVATE);
+                    boolean alertOnMonEnabled = sharedPref.getBoolean("alertOnMonEnabled", true);
+                    if (alertOnMonEnabled)
+                        BackgroundBle.setDi2RemoteStatus(true);
                     System.out.println("D-Fly monitoring enabled");
                     return;
                 }
@@ -126,8 +130,11 @@ public class Di2Fly {
                         gatt.discoverServices();
                     }
                     else {
+                        SharedPreferences sharedPref = MainActivity.getMainActivity().getPreferences(Context.MODE_PRIVATE);
+                        boolean alertOnMonDisabled = sharedPref.getBoolean("alertOnMonDisabled", true);
                         MainActivity.playSound(R.raw.fail);
-                        System.out.println("Di2 ble disconnect");
+                        if (alertOnMonDisabled)
+                            System.out.println("Di2 ble disconnect");
                         BackgroundBle.setDi2RemoteStatus(false);
                     }
 
@@ -194,21 +201,23 @@ public class Di2Fly {
                         if (newDfly[i] != lastDfly[i]) {
                             ButtonPressType buttonPressType = InterpretPressType(newDfly[i]);
                             System.out.println("D-Fly button " + buttonPressType.toString().toLowerCase() + " press ! Chan" + i);
+                            SharedPreferences sharedPref = MainActivity.getMainActivity().getPreferences(Context.MODE_PRIVATE);
+                            boolean alertOnButton = sharedPref.getBoolean("alertOnButton", true);
                             if (i == dflyChan) {
                                 if (buttonPressType == ButtonPressType.SIMPLE) {
-                                    MainActivity.playSound(R.raw.beep);
-                                    goProBle.ToggleRecord(true);
+                                    if (alertOnButton)
+                                        MainActivity.playSound(R.raw.beep);
+                                    context.playButtonAction("simplePress");
                                 }
                                 if (buttonPressType == ButtonPressType.DOUBLE) {
-                                    MainActivity.playSound(R.raw.doublebeep);
-                                    goProBle.TakePicture();
+                                    if (alertOnButton)
+                                        MainActivity.playSound(R.raw.doublebeep);
+                                    context.playButtonAction("doublePress");
                                 }
                                 if (buttonPressType == ButtonPressType.LONG) {
-                                    MainActivity.playSound(R.raw.longbeep);
-                                    if (goProBle.ConnectedAndReady)
-                                        goProBle.Sleep();
-                                    else
-                                        goProBle.Connect();
+                                    if (alertOnButton)
+                                        MainActivity.playSound(R.raw.longbeep);
+                                    context.playButtonAction("longPress");
                                 }
                                 lastPress = System.currentTimeMillis();
                                 break;

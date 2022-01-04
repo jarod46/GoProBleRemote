@@ -11,6 +11,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.media.VolumeProvider;
 import android.media.session.MediaSession;
 import android.os.IBinder;
@@ -189,6 +190,30 @@ public class BackgroundBle extends Service {
         handleUI();
     }
 
+    void playButtonAction(String actionName) {
+
+        SharedPreferences sharedPref = MainActivity.getMainActivity().getPreferences(MODE_PRIVATE);
+        int action = sharedPref.getInt(actionName, 0);
+        switch (action) {
+            case 1:
+                goProBle.ToggleRecord(false);
+                break;
+            case 2:
+                goProBle.ToggleRecord(true);
+                break;
+            case 3:
+                goProBle.TakePicture();
+                break;
+            case 4:
+                if (goProBle.ConnectedAndReady)
+                    goProBle.Sleep();
+                else
+                    goProBle.Connect();
+                break;
+        }
+    }
+
+
     public static boolean isRunning() {
         return isRunning;
     }
@@ -226,6 +251,8 @@ public class BackgroundBle extends Service {
                         longPress = true;
 
                     if (buttonHandleThread == null || !buttonHandleThread.isAlive()) {
+                        SharedPreferences sharedPref = MainActivity.getMainActivity().getPreferences(MODE_PRIVATE);
+                        boolean alertOnButton = sharedPref.getBoolean("alertOnButton", true);
                         if (lastHandle == 0 || System.currentTimeMillis() - lastHandle > 5000) {
                             buttonHandleThread = new Thread(new Runnable() {
                                 public void run() {
@@ -238,21 +265,21 @@ public class BackgroundBle extends Service {
                                         e.printStackTrace();
                                     }
                                     if (longPress) {
-                                        MainActivity.playSound(R.raw.longbeep);
+                                        if (alertOnButton)
+                                            MainActivity.playSound(R.raw.longbeep);
                                         Log.d("log", "Long press !");
-                                        if (goProBle.ConnectedAndReady)
-                                            goProBle.Sleep();
-                                        else
-                                            goProBle.Connect();
+                                        playButtonAction("longPress");
                                     } else {
                                         if (anotherPress) {
                                             Log.d("log", "Double press !");
-                                            MainActivity.playSound(R.raw.doublebeep);
-                                            goProBle.TakePicture();
+                                            if (alertOnButton)
+                                                MainActivity.playSound(R.raw.doublebeep);
+                                            playButtonAction("doublePress");
                                         } else {
                                             Log.d("log", "Simple press !");
-                                            MainActivity.playSound(R.raw.beep);
-                                            goProBle.ToggleRecord(true);
+                                            if (alertOnButton)
+                                                MainActivity.playSound(R.raw.beep);
+                                            playButtonAction("simplePress");
                                         }
                                     }
                                     lastHandle = System.currentTimeMillis();

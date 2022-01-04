@@ -9,6 +9,7 @@ import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothProfile;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.os.Looper;
 import android.util.Log;
 
@@ -521,7 +522,10 @@ public class GoProBle {
                     if (newState == BluetoothProfile.STATE_CONNECTED) {
                         System.out.println("GoPro ble connected");
                         goProRemoteIQ.sendMessage(GoProRemoteIQ.MessageType.Status, "Standby", "");
-                        //MainActivity.playSound(R.raw.coins497);
+                        SharedPreferences sharedPref = MainActivity.getMainActivity().getPreferences(Context.MODE_PRIVATE);
+                        boolean alertOnCamConnec = sharedPref.getBoolean("alertOnCamConnec", true);
+                        if (alertOnCamConnec)
+                            MainActivity.playSound(R.raw.coins497);
                         gatt.discoverServices();
                     }
                     else {
